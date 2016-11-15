@@ -2828,7 +2828,7 @@ public final class ActivityManagerService extends ActivityManagerNative
             if (!app.killed) {
                 Slog.wtfStack(TAG, "Removing process that hasn't been killed: " + app);
                 Process.killProcessQuiet(app.pid);
-                killProcessGroup(app.info.uid, app.pid);
+                killProcessGroup(app.uid, app.pid);
             }
             if (lrui <= mLruProcessActivityStart) {
                 mLruProcessActivityStart--;
@@ -3203,7 +3203,7 @@ public final class ActivityManagerService extends ActivityManagerNative
             // clean it up now.
             if (DEBUG_PROCESSES || DEBUG_CLEANUP) Slog.v(TAG_PROCESSES, "App died: " + app);
             checkTime(startTime, "startProcess: bad proc running, killing");
-            killProcessGroup(app.info.uid, app.pid);
+            killProcessGroup(app.uid, app.pid);
             handleAppDiedLocked(app, true, true);
             checkTime(startTime, "startProcess: done killing old proc");
         }
@@ -3444,6 +3444,18 @@ public final class ActivityManagerService extends ActivityManagerNative
             app.killed = false;
             app.killedByAm = false;
             checkTime(startTime, "startProcess: starting to update pids map");
+            ProcessRecord oldApp;
+            synchronized (mPidsSelfLocked) {
+                oldApp = mPidsSelfLocked.get(startResult.pid);
+            }
+            // If there is already an app occupying that pid that hasn't been cleaned up
+            if (oldApp != null && !app.isolated) {
+                // Clean up anything relating to this pid first
+                Slog.w(TAG, "Reusing pid " + startResult.pid
+                        + " while app is still mapped to it");
+                cleanUpApplicationRecordLocked(oldApp, false, false, -1,
+                        true /*replacingPid*/);
+            }
             synchronized (mPidsSelfLocked) {
                 this.mPidsSelfLocked.put(startResult.pid, app);
                 if (isActivityProcess) {
@@ -4585,7 +4597,8 @@ public final class ActivityManagerService extends ActivityManagerNative
     private final void handleAppDiedLocked(ProcessRecord app,
             boolean restarting, boolean allowRestart) {
         int pid = app.pid;
-        boolean kept = cleanUpApplicationRecordLocked(app, restarting, allowRestart, -1);
+        boolean kept = cleanUpApplicationRecordLocked(app, restarting, allowRestart, -1,
+                false /*replacingPid*/);
         if (!kept && !restarting) {
             removeLruProcessLocked(app);
             if (pid > 0) {
@@ -4726,7 +4739,7 @@ public final class ActivityManagerService extends ActivityManagerNative
             if (!fromBinderDied) {
                 Process.killProcessQuiet(pid);
             }
-            killProcessGroup(app.info.uid, pid);
+            killProcessGroup(app.uid, pid);
             app.killed = true;
         }
 
@@ -15559,7 +15572,8 @@ public final class ActivityManagerService extends ActivityManagerNative
      * app that was passed in must remain on the process lists.
      */
     private final boolean cleanUpApplicationRecordLocked(ProcessRecord app,
-            boolean restarting, boolean allowRestart, int index) {
+            boolean restarting, boolean allowRestart, int index, boolean replacingPid) {
+        Slog.d(TAG, "cleanUpApplicationRecord -- " + app.pid);
         if (index >= 0) {
             removeLruProcessLocked(app);
             ProcessList.remove(app.pid);
@@ -15689,7 +15703,9 @@ public final class ActivityManagerService extends ActivityManagerNative
         if (!app.persistent || app.isolated) {
             if (DEBUG_PROCESSES || DEBUG_CLEANUP) Slog.v(TAG_CLEANUP,
                     "Removing non-persistent process during cleanup: " + app);
-            removeProcessNameLocked(app.processName, app.uid);
+            if (!replacingPid) {
+                removeProcessNameLocked(app.processName, app.uid);
+            }
             if (mHeavyWeightProcess == app) {
                 mHandler.sendMessage(mHandler.obtainMessage(CANCEL_HEAVY_NOTIFICATION_MSG,
                         mHeavyWeightProcess.userId, 0));
@@ -19599,7 +19615,7 @@ public final class ActivityManagerService extends ActivityManagerNative
                             // Ignore exceptions.
                         }
                     }
-                    cleanUpApplicationRecordLocked(app, false, true, -1);
+                    cleanUpApplicationRecordLocked(app, false, true, -1, false /*replacingPid*/);
                     mRemovedProcesses.remove(i);
 
                     if (app.persistent) {

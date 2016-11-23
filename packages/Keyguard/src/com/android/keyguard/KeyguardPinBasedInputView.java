@@ -18,19 +18,15 @@ package com.android.keyguard;
 
 import android.content.Context;
 import android.graphics.Rect;
-import android.provider.Settings;
-import android.os.UserHandle;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.View;
-
-import com.android.internal.widget.LockPatternUtils.RequestThrottledException;
 
 /**
  * A Pin based Keyguard input view
  */
 public abstract class KeyguardPinBasedInputView extends KeyguardAbsKeyInputView
-        implements View.OnKeyListener, PasswordTextView.OnTextChangedListener {
+        implements View.OnKeyListener {
 
     protected PasswordTextView mPasswordEntry;
     private View mOkButton;
@@ -45,8 +41,6 @@ public abstract class KeyguardPinBasedInputView extends KeyguardAbsKeyInputView
     private View mButton7;
     private View mButton8;
     private View mButton9;
-
-    private boolean mQuickUnlock;
 
     public KeyguardPinBasedInputView(Context context) {
         this(context, null);
@@ -163,29 +157,10 @@ public abstract class KeyguardPinBasedInputView extends KeyguardAbsKeyInputView
         return mPasswordEntry.getText();
     }
 
-    // Listener callback.
-    @Override
-    public void onTextChanged() {
-        if (mQuickUnlock) {
-            try {
-                int mPasswordLength = getPasswordText().length();
-                if (mPasswordLength == 4) { // Limit Quickunlock to 4 digits PIN
-                    if(mLockPatternUtils.checkPassword(getPasswordText(), UserHandle.myUserId())) {
-                        mCallback.reportUnlockAttempt(true, 0);
-                        mCallback.dismiss(true);
-                    }
-                }
-             } catch (RequestThrottledException e) {
-                System.err.println("PIN - RequestThrottledException: " + e.getMessage());
-             }
-        }
-    }
-
     @Override
     protected void onFinishInflate() {
         mPasswordEntry = (PasswordTextView) findViewById(getPasswordTextViewId());
         mPasswordEntry.setOnKeyListener(this);
-        mPasswordEntry.setOnTextChangedListener(this);
 
         // Set selected property on so the view can send accessibility events.
         mPasswordEntry.setSelected(true);
@@ -196,9 +171,6 @@ public abstract class KeyguardPinBasedInputView extends KeyguardAbsKeyInputView
                 onUserInput();
             }
         });
-
-        mQuickUnlock = Settings.Secure.getIntForUser(mContext.getContentResolver(),
-                Settings.Secure.LOCKSCREEN_QUICK_UNLOCK_CONTROL, 1, UserHandle.USER_CURRENT) == 1;
 
         mOkButton = findViewById(R.id.key_enter);
         if (mOkButton != null) {

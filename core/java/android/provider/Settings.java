@@ -6749,12 +6749,6 @@ public final class Settings {
         public static final String DEVICE_HOSTNAME = "device_hostname";
 
         /**
-         * Whether to use the custom quick unlock screen control
-         * @hide
-         */
-        public static final String LOCKSCREEN_QUICK_UNLOCK_CONTROL = "lockscreen_quick_unlock_control";
-
-        /**
          * Launch actions for left/right lockscreen targets
          * @hide
          */
@@ -6861,7 +6855,6 @@ public final class Settings {
             SLEEP_TIMEOUT,
             DOUBLE_TAP_TO_WAKE,
             CAMERA_GESTURE_DISABLED,
-            LOCKSCREEN_QUICK_UNLOCK_CONTROL,
         };
 
         /**

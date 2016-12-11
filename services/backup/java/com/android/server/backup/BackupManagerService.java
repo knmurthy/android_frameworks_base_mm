@@ -2232,9 +2232,9 @@ public class BackupManagerService {
     IBackupAgent bindToAgentSynchronous(ApplicationInfo app, int mode) {
         IBackupAgent agent = null;
         try {
-            synchronized(mAgentConnectLock) {
-                mConnecting = true;
-                mConnectedAgent = null;
+        synchronized(mAgentConnectLock) {
+            mConnecting = true;
+            mConnectedAgent = null;
                 if (mActivityManager.bindBackupAgent(app.packageName, mode,
                         UserHandle.USER_OWNER)) {
                     Slog.d(TAG, "awaiting agent for " + app);
